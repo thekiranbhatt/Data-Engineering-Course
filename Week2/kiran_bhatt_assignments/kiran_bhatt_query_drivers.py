@@ -103,13 +103,13 @@ def fetch_drivers(conn) -> list:
       4. Close the cursor and return the rows
     """
     
-    cur = conn.cursor()  # Opening the database cursor
+    with conn.cursor() as cur: # Opening the database cursor
     # Executing the SQL query
-    cur.execute(SQL)
+        cur.execute(SQL)
     
-    rows = cur.fetchall()  # retrieving all rows from our query that has been executed
+        rows = cur.fetchall()  # retrieving all rows from our query that has been executed
     
-    cur.close() # closing the cursor
+
     
     return rows
 
@@ -153,12 +153,14 @@ def main():
 
     try:
         conn = get_connection(config)
-        # Uncomment for debugging        
-        # cur = conn.cursor()
-        # cur.execute("SELECT current_database()")
-        # print(cur.fetchall())
-        # cur.execute("SELECT datname FROM pg_database")
-        # print(cur.fetchall())
+        
+        # used with pattern 
+        with conn.cursor() as cur:
+            cur.execute("SELECT current_database()")
+            print(cur.fetchall())
+            cur.execute("SELECT datname FROM pg_database")
+            print(cur.fetchall())
+            
     except psycopg2.OperationalError as e:
         print(f"Connection failed: {e}")
         return
@@ -171,3 +173,23 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+"""
+Driver                   Completed Rides
+----------------------------------------
+Rajan Pandey                         307
+Nisha Bista                          300
+Suresh Magar                         298
+Bikash Karki                         296
+Priya Gurung                         285
+Anita Rai                            284
+Ramesh Shrestha                      278
+Deepak Thapa                         278
+Kabita Lama                          276
+Sita Tamang                          265
+Siva Pandit                            1
+Sakti Man                              0
+----------------------------------------
+Total drivers:                        12
+
+"""
