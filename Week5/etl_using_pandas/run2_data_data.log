@@ -1,0 +1,1 @@
+2026-07-17 14:12:18,711  ERROR [test_quality_gate.py:52] Data Quality Gate Halt: Quality check failed: no_negative_fares — 1 rows with fare_amount <= 0

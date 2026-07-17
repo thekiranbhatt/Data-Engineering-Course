@@ -1,0 +1,26 @@
+2026-07-17 14:11:09,302  INFO [pipeline.py:107] Full reload requested. Purging target warehouse tables...
+2026-07-17 14:11:09,310  INFO [load.py:39] Truncated tables: fact_trips, dim_driver, dim_passenger, dim_location, dim_payment_method, dim_promo_code
+2026-07-17 14:11:09,312  INFO [extract.py:12] Extracted 25 rows from the table
+2026-07-17 14:11:09,316  INFO [load.py:21] 25 inserted to dim_driver
+2026-07-17 14:11:09,317  INFO [extract.py:12] Extracted 30 rows from the table
+2026-07-17 14:11:09,320  INFO [load.py:21] 0 inserted to dim_vehicle
+2026-07-17 14:11:09,321  INFO [extract.py:12] Extracted 45 rows from the table
+2026-07-17 14:11:09,325  INFO [load.py:21] 45 inserted to dim_passenger
+2026-07-17 14:11:09,326  INFO [extract.py:12] Extracted 25 rows from the table
+2026-07-17 14:11:09,329  INFO [load.py:21] 25 inserted to dim_location
+2026-07-17 14:11:09,330  INFO [extract.py:12] Extracted 7 rows from the table
+2026-07-17 14:11:09,331  INFO [load.py:21] 7 inserted to dim_payment_method
+2026-07-17 14:11:09,332  INFO [extract.py:12] Extracted 10 rows from the table
+2026-07-17 14:11:09,333  INFO [load.py:21] 10 inserted to dim_promo_code
+2026-07-17 14:11:09,333  INFO [pipeline.py:118] Dimention table load completed on 0.02s
+2026-07-17 14:11:09,333  INFO [extract.py:126] Loading lookup tables into memory
+2026-07-17 14:11:09,335  INFO [pipeline.py:123] Lookup table extraction completed on 0.00s
+2026-07-17 14:11:09,376  INFO [extract.py:12] Extracted 10000 rows from the table
+2026-07-17 14:11:09,376  INFO [pipeline.py:132] Trip extraction  completed on 0.04s
+2026-07-17 14:11:09,400  INFO [transform.py:171] Transformed 10000 rows, skipped 0
+2026-07-17 14:11:09,400  INFO [pipeline.py:137] Transformation completed on 0.02s
+2026-07-17 14:11:09,401  INFO [quality.py:136] Quality gate passed: 10,000 rows, 5 checks
+2026-07-17 14:11:09,401  INFO [pipeline.py:147] Quality Check completed on 0.00s
+2026-07-17 14:11:10,174  INFO [load.py:21] 10000 inserted to fact_trips
+2026-07-17 14:11:10,175  INFO [pipeline.py:152] Trip table load completed on 0.77s
+2026-07-17 14:11:10,175  INFO [pipeline.py:156] Database handles closed successfully.

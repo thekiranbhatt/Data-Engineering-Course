@@ -65,15 +65,15 @@ def _drop_unmatched(df: pd.DataFrame, key_col: str, label: str) -> pd.DataFrame:
         logger.warning(f"{missing.sum()} trip(s) missing {label} — skipped")
     return df[~missing]
 
-
+# Included vehicle_key and time_key in FACT_COLUMNS array 
 FACT_COLUMNS = [
-    "source_trip_id", "date_key", "driver_key", "passenger_key",
+    "source_trip_id", "date_key", "driver_key", "vehicle_key", "passenger_key",
     "pickup_location_key", "dropoff_location_key",
     "payment_method_key", "promo_code_key",
     "base_fare", "tip_amount", "discount_amount", "fare_amount",
     "distance_km", "status", "duration_minutes",
     "driver_rating", "passenger_rating",
-    "surge_multiplier", "requested_at",
+    "surge_multiplier", "requested_at","time_key"
 ]
 
 
@@ -87,17 +87,34 @@ def transform_trips(trips_df: pd.DataFrame, lookups: dict) -> pd.DataFrame:
     initial_count = len(trips_df)
     df = trips_df.copy()
 
+    # Date mapping
     df["date_key"] = df["requested_at"].dt.strftime("%Y%m%d").astype(int)
     df = df[df["date_key"].isin(lookups["date"]["date_key"])]
     if len(df) < initial_count:
         logger.warning(f"{initial_count - len(df)} trip(s) outside of dim_date range — skipped")
-
+    # Driver mapping
     df = df.merge(lookups["driver"], on="driver_id", how="left")
     df = _drop_unmatched(df, "driver_key", "driver_key (dim_driver)")
-
+     
+    # Driver mapping
     df = df.merge(lookups["passenger"], on="passenger_id", how="left")
     df = _drop_unmatched(df, "passenger_key", "passenger_key (dim_passenger)")
+    
+     # Vehicle mapping 
+    df = df.merge(lookups["vehicle"], on="vehicle_id", how="left")
+    df = _drop_unmatched(df, "vehicle_key", "vehicle_key (dim_vehicle)")
 
+    # Time bucket mapping to generate time_key
+    df["hour"] = df["requested_at"].dt.hour
+    df["minute_bucket"] = (df["requested_at"].dt.minute // 15) * 15
+    df = df.merge(
+        lookups["time"][["time_key", "hour", "minute_bucket"]],
+        on=["hour", "minute_bucket"],
+        how="left",
+    )
+    df = _drop_unmatched(df, "time_key", "time_key (dim_time)")
+
+    # Location mapping
     pickup_lookup = lookups["location"].rename(
         columns={"location_id": "pickup_location_id", "location_key": "pickup_location_key"}
     )
@@ -113,6 +130,7 @@ def transform_trips(trips_df: pd.DataFrame, lookups: dict) -> pd.DataFrame:
     # payment_method_id / promo_code_id are nullable in trips (e.g. no_show trips
     # have no payment method) and fact_trips allows NULL for both — a row is only
     # dropped when the OLTP row *has* a value that the merge failed to resolve.
+    # Payment and promo mapping
     df = df.merge(lookups["payment_method"], on="payment_method_id", how="left")
     bad_pm = df["payment_method_id"].notna() & df["payment_method_key"].isna()
     if bad_pm.any():
@@ -125,24 +143,28 @@ def transform_trips(trips_df: pd.DataFrame, lookups: dict) -> pd.DataFrame:
         logger.warning(f"{bad_promo.sum()} trip(s) with unknown promo_code_id — skipped")
     df = df[~bad_promo]
 
-    for col in ("driver_key", "passenger_key", "pickup_location_key",
-                "dropoff_location_key", "payment_method_key", "promo_code_key"):
+#Converting data key fields to standard integer layouts
+    for col in ("driver_key","vehicle_key", "passenger_key", "pickup_location_key",
+                "dropoff_location_key", "payment_method_key", "promo_code_key", "time_key"):
         df[col] = df[col].astype("Int64")
 
+    # Financial math logic
     df["base_fare"] = df["base_fare"].fillna(0)
     df["tip_amount"] = df["tip_amount"].fillna(0)
-    df["surge_multiplier"] = df["surge_multiplier"].fillna(0)
+    df["surge_multiplier"] = df["surge_multiplier"].fillna(1) # Based on our class discussion kept surge multiplier to 1 instead of 0 to protect base_fare math
     df["discount_amount"] = df["discount_amount"].fillna(0)
     df["fare_amount"] = (
         df["base_fare"] * df["surge_multiplier"] + df["tip_amount"] - df["discount_amount"]
     ).round(2)
 
+    # Durations
     completed = (df["status"] == "completed") & df["completed_at"].notna()
     df["duration_minutes"] = pd.Series(pd.NA, index=df.index, dtype="Float64")
     df.loc[completed, "duration_minutes"] = (
         (df.loc[completed, "completed_at"] - df.loc[completed, "requested_at"]).dt.total_seconds() / 60
-    ).round(1)
+    ).round(2)
 
+    
     df = df.rename(columns={"trip_id": "source_trip_id"})
     result = df[FACT_COLUMNS].reset_index(drop=True)
 

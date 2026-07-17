@@ -26,6 +26,23 @@ def _execute(conn, sql, df: pd.DataFrame, table_name: str):
         raise
 
 
+def truncate_warehouse(conn):
+    tables = [
+        "fact_trips", "dim_driver", "dim_passenger", 
+        "dim_location", "dim_payment_method", "dim_promo_code"
+    ]
+    try:
+        with conn.cursor() as curr:
+            query = f"TRUNCATE TABLE {', '.join(tables)} RESTART IDENTITY CASCADE;"
+            curr.execute(query)
+            conn.commit()
+            logger.info(f"Truncated tables: {', '.join(tables)}")
+    except Exception as e:
+        conn.rollback()
+        logger.error(f"Failed to truncate tables: {str(e)}")
+        raise
+
+
 def load_dim_driver(conn, driver_df):
     sql = """
  INSERT INTO dim_driver
@@ -36,9 +53,26 @@ def load_dim_driver(conn, driver_df):
              %(joined_at)s,
              %(tenure_bucket)s
             )
-    ON CONFLICT DO NOTHING
+    ON CONFLICT(driver_id) DO NOTHING
 """
     _execute(conn, sql, driver_df, "dim_driver")
+
+def load_dim_vehicle(conn, vehicle_df):
+    sql = """
+ INSERT INTO dim_vehicle
+    (vehicle_id, plate_number, make, model, year, color, category, is_active)
+    VALUES ( %(vehicle_id)s,
+             %(plate_number)s,
+             %(make)s,
+             %(model)s,
+             %(year)s,
+             %(color)s,
+             %(category)s,
+             %(is_active)s
+            )
+    ON CONFLICT (vehicle_id) DO NOTHING
+"""
+    _execute(conn, sql, vehicle_df, "dim_vehicle")
 
 
 def load_dim_passenger(conn, passenger_df):
@@ -51,7 +85,7 @@ def load_dim_passenger(conn, passenger_df):
              %(cohort_month)s,
              %(created_at)s
             )
-    ON CONFLICT DO NOTHING
+    ON CONFLICT (passenger_id) DO NOTHING
 """
     _execute(conn, sql, passenger_df, "dim_passenger")
 
@@ -105,16 +139,17 @@ def load_dim_promo_code(conn, promo_code_df):
 def load_fact_trips(conn, fact_df):
     sql = """
  INSERT INTO fact_trips
-    (source_trip_id, date_key, driver_key, passenger_key,
+    (source_trip_id, date_key, driver_key,vehicle_key, passenger_key,
      pickup_location_key, dropoff_location_key,
      payment_method_key, promo_code_key,
      base_fare, tip_amount, discount_amount, fare_amount,
      distance_km, duration_minutes,
      driver_rating, passenger_rating,
-     surge_multiplier, requested_at)
+     surge_multiplier, requested_at, time_key)
     VALUES ( %(source_trip_id)s,
              %(date_key)s,
              %(driver_key)s,
+             %(vehicle_key)s,
              %(passenger_key)s,
              %(pickup_location_key)s,
              %(dropoff_location_key)s,
@@ -129,11 +164,13 @@ def load_fact_trips(conn, fact_df):
              %(driver_rating)s,
              %(passenger_rating)s,
              %(surge_multiplier)s,
-             %(requested_at)s
+             %(requested_at)s,
+             %(time_key)s 
             )
     ON CONFLICT (source_trip_id) DO NOTHING
 """
     if fact_df.empty:
         logger.info("No fact rows to load — skipping")
         return
+
     _execute(conn, sql, fact_df.drop(columns=["status"], errors="ignore"), "fact_trips")

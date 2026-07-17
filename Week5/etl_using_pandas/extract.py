@@ -15,6 +15,13 @@ def extract(conn, sql, params=None):
         logger.error(str(e))
         raise
 
+def extract_vehicle(conn):
+    sql = """
+    SELECT vehicle_id, plate_number, make, model, year, color, category, is_active
+    FROM vehicles
+    """
+    return extract(conn, sql)
+
 
 def extract_driver(conn):
     sql = """
@@ -61,6 +68,7 @@ def extract_trips_incremental(conn, watermark):
       SELECT
         t.trip_id,
         t.driver_id,
+        t.vehicle_id,
         t.passenger_id,
         t.pickup_location_id,
         t.dropoff_location_id,
@@ -90,6 +98,7 @@ def extract_trips_full(conn):
       SELECT
         t.trip_id,
         t.driver_id,
+        t.vehicle_id,
         t.passenger_id,
         t.pickup_location_id,
         t.dropoff_location_id,
@@ -117,6 +126,8 @@ def extract_lookup_dim(conn):
     logger.info("Loading lookup tables into memory")
     lookup = {
         "driver": pd.read_sql_query("SELECT driver_id, driver_key FROM dim_driver", conn),
+        "vehicle": pd.read_sql_query("SELECT vehicle_id, vehicle_key FROM dim_vehicle", conn),
+        "time": pd.read_sql_query("SELECT time_key, hour, minute_bucket FROM dim_time", conn),
         "passenger": pd.read_sql_query("SELECT passenger_id, passenger_key FROM dim_passenger", conn),
         "location": pd.read_sql_query("SELECT location_id, location_key FROM dim_location", conn),
         "payment_method": pd.read_sql_query(
