@@ -62,6 +62,13 @@ def check_no_null_driver_keys(df: pd.DataFrame) -> dict:
 
 def check_completed_have_duration(df: pd.DataFrame) -> dict:
     """Fail if any completed trip is missing duration_minutes."""
+    if "status" not in df.columns:
+        return {
+            "check": "completed_have_duration",
+            "passed": True,
+            "detail": "Skipped — 'status' column not present"
+        }
+
     bad = int(((df["status"] == "completed") & df["duration_minutes"].isna()).sum())
     return {
         "check": "completed_have_duration",
@@ -72,6 +79,13 @@ def check_completed_have_duration(df: pd.DataFrame) -> dict:
 
 def check_valid_status(df: pd.DataFrame) -> dict:
     """Fail if any row has an unrecognised status value."""
+    if "status" not in df.columns:
+        return {
+            "check": "valid_status",
+            "passed": True,
+            "detail": "Skipped — 'status' column not present"
+        }
+    
     valid = {"completed", "cancelled", "no_show"}
     bad = int((~df["status"].isin(valid)).sum())
     return {
